@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.env
+
+# Data / models grandes (se gestionarán luego con DVC/MLflow)
+data/raw/*
+data/processed/*
+models/*.joblib
+models/*.pkl
+
+# Entornos e IDE
+.DS_Store
+.vscode/
