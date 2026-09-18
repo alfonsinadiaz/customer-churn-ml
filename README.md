@@ -2,7 +2,7 @@
 
 Proyecto de Laboratorio de Minería de Datos para analizar y predecir el abandono de clientes de una empresa de telecomunicaciones.
 
-La versión actual concentra el análisis exploratorio, el preprocesamiento y la comparación inicial de modelos en `notebooks/01_eda_y_modelos.ipynb`.
+El notebook conserva el desarrollo exploratorio y el código reutilizable se encuentra refactorizado en `src/`. El entrenamiento también puede ejecutarse desde Python sin depender de la ejecución manual del notebook.
 
 ## Dataset
 
@@ -21,7 +21,7 @@ El dataset contiene:
 
 `customerID` se excluye del entrenamiento porque identifica al cliente y no representa una característica útil para generalizar predicciones.
 
-El CSV no se incluye actualmente en Git. Debe ubicarse manualmente en `data/raw/` antes de ejecutar el notebook.
+El CSV no se incluye directamente en Git. DVC lo referencia mediante `data/raw/customer_churn_historical.csv.dvc`.
 
 ## Análisis exploratorio
 
@@ -86,19 +86,68 @@ pip install -r requirements.txt
 
 ## Ejecución
 
-1. Crear la carpeta `data/raw/`.
-2. Copiar allí `customer_churn_historical.csv`.
-3. Abrir `notebooks/01_eda_y_modelos.ipynb`.
-4. Ejecutar las celdas en orden.
+Con el dataset disponible en `data/raw/`, el EDA resumido se ejecuta desde la raíz:
 
-El notebook debe iniciarse desde la carpeta `notebooks/` para que la ruta `../data/raw/customer_churn_historical.csv` encuentre el archivo.
+```bash
+python -m scripts.eda
+```
+
+Para entrenar los tres modelos, guardar las métricas y exportar el candidato:
+
+```bash
+python -m src.training.train
+```
+
+El pipeline seleccionado se guarda en `models/churn_pipeline.joblib` y las métricas en `results/generated/model_metrics.csv`. Ambos son archivos generados y no se versionan en Git.
+
+Las pruebas se ejecutan con:
+
+```bash
+pytest
+```
+
+El notebook sigue disponible en `notebooks/01_eda_y_modelos.ipynb`. Debe iniciarse desde la carpeta `notebooks/` para que su ruta `../data/raw/customer_churn_historical.csv` encuentre el archivo.
+
+## DVC
+
+La versión local de DVC ya está inicializada y el CSV está rastreado. Para comprobar el estado:
+
+```bash
+dvc status
+```
+
+El remote utiliza el proyecto de DagsHub que ya existía y su URL ya está guardada en `.dvc/config`:
+
+<https://dagshub.com/giselle.san/entregaPrimerParcial>
+
+Cada integrante debe guardar su propio usuario y token mediante configuración local. `.dvc/config.local` está ignorado por Git y los tokens no deben incluirse en el repositorio. Después puede recuperar o subir los datos con:
+
+```bash
+dvc pull
+dvc push
+```
+
+En esta copia el remote ya está configurado. Para subir o recuperar el CSV sólo hay que actualizar el token local y ejecutar `dvc push` o `dvc pull`.
 
 ## Estructura actual
 
 ```text
 customer-churn-ml/
+├── data/raw/
+│   └── customer_churn_historical.csv.dvc
 ├── notebooks/
 │   └── 01_eda_y_modelos.ipynb
+├── scripts/
+│   └── eda.py
+├── src/
+│   ├── data/load_data.py
+│   ├── evaluation/metrics.py
+│   ├── features/preprocessing.py
+│   └── training/train.py
+├── tests/
+│   ├── test_metrics.py
+│   └── test_preprocessing.py
+├── .dvc/
 ├── .env.example
 ├── .gitignore
 ├── README.md
@@ -114,10 +163,13 @@ customer-churn-ml/
 | Partición reproducible y test separado | Cumplido |
 | Pipeline de preprocesamiento con scikit-learn | Cumplido |
 | Baseline, modelo lineal y modelo de árboles | Cumplido |
-| Dataset bajo DVC con remoto en DagsHub | Pendiente |
+| Entrenamiento ejecutable desde Python fuera del notebook | Cumplido |
+| Pruebas de métricas y preprocesamiento | Cumplido |
+| Dataset rastreado localmente con DVC | Cumplido |
+| Remote DVC apuntando al DagsHub existente | Configurado |
+| Autenticación vigente y comprobación de `dvc push` | Pendiente: renovar token local |
 | Seis corridas relevantes en MLflow | Pendiente |
 | Modelo candidato en Model Registry | Pendiente |
-| Entrenamiento ejecutable desde Python fuera del notebook | Pendiente |
 | Tag Git `entrega-1` sobre el commit presentado | Pendiente |
 | Reproducción completa desde una segunda copia | Pendiente |
 

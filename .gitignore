@@ -4,12 +4,13 @@ __pycache__/
 .venv/
 .env
 
-# Data / models grandes (se gestionarán luego con DVC/MLflow)
-data/raw/*
+# Datos procesados y modelos generados
 data/processed/*
 models/*.joblib
 models/*.pkl
+results/generated/
 
 # Entornos e IDE
 .DS_Store
 .vscode/
+.pytest_cache/
