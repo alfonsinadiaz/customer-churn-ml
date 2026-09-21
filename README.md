@@ -92,13 +92,46 @@ Con el dataset disponible en `data/raw/`, el EDA resumido se ejecuta desde la ra
 python -m scripts.eda
 ```
 
-Para entrenar los tres modelos, guardar las métricas y exportar el candidato:
+Para ejecutar las seis alternativas, evaluar el candidato sobre el test aislado y registrarlo:
 
 ```bash
-python -m src.training.train
+python -m src.training.train --register-best
 ```
 
-El pipeline seleccionado se guarda en `models/churn_pipeline.joblib` y las métricas en `results/generated/model_metrics.csv`. Ambos son archivos generados y no se versionan en Git.
+El pipeline seleccionado se guarda en `models/churn_pipeline.joblib`. Las métricas y la identificación del Run final se generan en `results/generated/`. Estos archivos pueden regenerarse y no se versionan en Git.
+
+## MLflow y Model Registry
+
+Por defecto, las corridas se guardan en `sqlite:///mlflow.db`. La interfaz local se abre con:
+
+```bash
+mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5000
+```
+
+El entrenamiento registra seis alternativas razonadas:
+
+| Run | Familia | Cambio evaluado |
+|---|---|---|
+| `dummy_prior` | Baseline | Referencia sin capacidad predictiva |
+| `logreg_c0.5` | Lineal | Regularización `C=0.5` |
+| `logreg_c1` | Lineal | Regularización `C=1.0` |
+| `logreg_c1_threshold035` | Lineal | Umbral de decisión 0.35 |
+| `random_forest_depth5` | Árbol | Profundidad máxima 5 |
+| `random_forest_depth10` | Árbol | Profundidad máxima 10 |
+
+Cada Run guarda parámetros, métricas, hash del dataset, commit Git, archivo JSON y pipeline completo. Una séptima corrida entrena el candidato seleccionado con train y validation, lo evalúa una sola vez sobre test y origina la versión del Model Registry.
+
+La validación seleccionó `logreg_c1_threshold035`. En el test aislado obtuvo recall `0,847`, F1 `0,565` y ROC-AUC `0,812`.
+
+Para registrar el mismo flujo en DagsHub se definen localmente las siguientes variables, sin guardar el token en Git:
+
+```text
+MLFLOW_TRACKING_URI=https://dagshub.com/giselle.san/entregaPrimerParcial.mlflow
+MLFLOW_TRACKING_USERNAME=giselle.san
+MLFLOW_TRACKING_PASSWORD=TOKEN_PERSONAL
+```
+
+La ejecución remota verificada el 21 de septiembre de 2026 registró `customer-churn-candidate` versión 4. La corrida final de origen es [`cbc3cc5511bf4a5fae054191f097fe76`](https://dagshub.com/giselle.san/entregaPrimerParcial.mlflow/#/experiments/0/runs/cbc3cc5511bf4a5fae054191f097fe76) y conserva como origen el commit `f629724`. Las seis corridas pueden compararse en el [experimento de DagsHub MLflow](https://dagshub.com/giselle.san/entregaPrimerParcial.mlflow/#/experiments/0).
 
 Las pruebas se ejecutan con:
 
@@ -127,7 +160,7 @@ dvc pull
 dvc push
 ```
 
-En esta copia el remote ya está configurado. Para subir o recuperar el CSV sólo hay que actualizar el token local y ejecutar `dvc push` o `dvc pull`.
+En esta copia el remote ya está configurado y `dvc push` fue comprobado el 21 de septiembre de 2026. Cada integrante utiliza sus propias credenciales para ejecutar `dvc pull` o `dvc push`.
 
 ## Estructura actual
 
@@ -146,7 +179,8 @@ customer-churn-ml/
 │   └── training/train.py
 ├── tests/
 │   ├── test_metrics.py
-│   └── test_preprocessing.py
+│   ├── test_preprocessing.py
+│   └── test_training.py
 ├── .dvc/
 ├── .env.example
 ├── .gitignore
@@ -164,16 +198,16 @@ customer-churn-ml/
 | Pipeline de preprocesamiento con scikit-learn | Cumplido |
 | Baseline, modelo lineal y modelo de árboles | Cumplido |
 | Entrenamiento ejecutable desde Python fuera del notebook | Cumplido |
-| Pruebas de métricas y preprocesamiento | Cumplido |
+| Pruebas de métricas, preprocesamiento y alternativas | Cumplido: 3 pruebas |
 | Dataset rastreado localmente con DVC | Cumplido |
 | Remote DVC apuntando al DagsHub existente | Configurado |
-| Autenticación vigente y comprobación de `dvc push` | Pendiente: renovar token local |
-| Seis corridas relevantes en MLflow | Pendiente |
-| Modelo candidato en Model Registry | Pendiente |
-| Tag Git `entrega-1` sobre el commit presentado | Pendiente |
-| Reproducción completa desde una segunda copia | Pendiente |
+| Autenticación vigente y comprobación de `dvc push` | Cumplido |
+| Seis corridas relevantes en MLflow | Cumplido en DagsHub |
+| Modelo candidato en Model Registry | Cumplido: versión 4, Run `cbc3cc5511bf4a5fae054191f097fe76` |
+| Tag Git `entrega-1` sobre el commit presentado | Cumplido en la versión final |
+| Reproducción completa desde una segunda copia | Comprobada: clone, DVC pull, EDA, pruebas y entrenamiento |
 
-Los puntos pendientes son necesarios para cumplir completamente la consigna y asegurar la trazabilidad entre dataset, código, corridas y modelo registrado.
+La segunda copia utilizó una credencial local de DagsHub que se retiró al finalizar la prueba. Cada integrante debe utilizar su propio token; ninguna credencial forma parte de Git.
 
 ## Repositorio
 
