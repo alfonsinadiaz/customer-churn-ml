@@ -9,6 +9,8 @@ data/processed/*
 models/*.joblib
 models/*.pkl
 results/generated/
+mlflow.db
+mlruns/
 
 # Entornos e IDE
 .DS_Store
