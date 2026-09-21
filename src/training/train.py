@@ -132,12 +132,15 @@ def evaluate(
 
 def log_pipeline(pipeline: Pipeline, features: pd.DataFrame) -> Any:
     input_example = features.head(3).copy()
+    integer_columns = input_example.select_dtypes(include=["integer"]).columns
+    input_example[integer_columns] = input_example[integer_columns].astype("float64")
     predictions = pipeline.predict(input_example)
     return mlflow.sklearn.log_model(
         sk_model=pipeline,
         name="model",
         input_example=input_example,
         signature=infer_signature(input_example, predictions),
+        serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_CLOUDPICKLE,
     )
 
 
