@@ -214,7 +214,7 @@ La segunda copia utilizó una credencial local de DagsHub que se retiró al fina
 <https://github.com/alfonsinadiaz/customer-churn-ml>
 
 
-***Segundo Parcial - API de Predicción de Churn***
+***SEGUNDO PARCIAL - API de Predicción de Churn***
 
 Objetivo
 En el segundo parcial se desarrolló una API REST utilizando FastAPI para exponer el modelo de Machine Learning entrenado en el primer parcial y permitir realizar predicciones de abandono de clientes (Customer Churn) mediante solicitudes HTTP.
