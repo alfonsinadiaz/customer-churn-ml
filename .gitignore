@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.env
+
+# Datos procesados y modelos generados
+data/processed/*
+models/*.joblib
+models/*.pkl
+results/generated/
+mlflow.db
+mlruns/
+
+# Entornos e IDE
+.DS_Store
+.vscode/
+.pytest_cache/
