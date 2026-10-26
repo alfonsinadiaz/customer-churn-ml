@@ -212,3 +212,134 @@ La segunda copia utilizó una credencial local de DagsHub que se retiró al fina
 ## Repositorio
 
 <https://github.com/alfonsinadiaz/customer-churn-ml>
+
+
+***Segundo Parcial - API de Predicción de Churn***
+
+Objetivo
+En el segundo parcial se desarrolló una API REST utilizando FastAPI para exponer el modelo de Machine Learning entrenado en el primer parcial y permitir realizar predicciones de abandono de clientes (Customer Churn) mediante solicitudes HTTP.
+
+Arquitectura de la solución
+La API utiliza:
+
+FastAPI para la construcción de servicios REST.
+Pydantic para validación de datos de entrada.
+Joblib para cargar el pipeline entrenado.
+Scikit-Learn para inferencia del modelo.
+Pytest para pruebas automatizadas.
+Docker y Docker Compose para contenerización y despliegue.
+Estructura agregada en el segundo parcial
+app/
+├── api_main.py
+├── predictor.py
+└── schemas.py
+
+models/
+└── churn_pipeline.joblib
+
+tests/
+└── test_api.py
+
+Dockerfile
+compose.yaml
+API REST
+Endpoint raíz
+GET /
+Respuesta:
+
+{
+  "message": "Customer Churn API"
+}
+Estado de la aplicación
+GET /health
+Respuesta:
+
+{
+  "status": "healthy",
+  "model_version": "4"
+}
+Predicción de Churn
+POST /predict
+Entrada:
+
+{
+  "gender": "Female",
+  "SeniorCitizen": "No",
+  "Partner": "Yes",
+  "Dependents": "No",
+  "tenure": 12,
+  "PhoneService": "Yes",
+  "MultipleLines": "No",
+  "InternetService": "Fiber optic",
+  "OnlineSecurity": "No",
+  "OnlineBackup": "Yes",
+  "DeviceProtection": "No",
+  "TechSupport": "No",
+  "StreamingTV": "Yes",
+  "StreamingMovies": "Yes",
+  "Contract": "Month-to-month",
+  "PaperlessBilling": "Yes",
+  "PaymentMethod": "Electronic check",
+  "MonthlyCharges": 89.5,
+  "TotalCharges": 1074.0
+}
+Ejemplo de respuesta:
+
+{
+  "prediction": "CHURN",
+  "probability": 0.9397,
+  "risk_level": "HIGH",
+  "model_version": "4"
+}
+Campos de salida:
+
+Campo	Descripción
+prediction	Resultado final de la predicción
+probability	Probabilidad estimada de churn
+risk_level	LOW, MEDIUM o HIGH
+model_version	Versión del modelo utilizado
+Documentación interactiva
+FastAPI genera documentación OpenAPI automáticamente.
+
+Swagger:
+
+http://localhost:8000/docs
+Redoc:
+
+http://localhost:8000/redoc
+Ejecución local
+Iniciar la API:
+
+python -m uvicorn app.api_main:app --reload
+Abrir documentación:
+
+http://localhost:8000/docs
+Testing
+Pruebas implementadas:
+
+Verificación de disponibilidad del endpoint /health.
+Verificación del endpoint /predict.
+Validación de estructura de respuesta.
+Ejecución:
+
+python -m pytest tests/test_api.py -v
+Resultado obtenido:
+
+2 passed
+Docker
+Construcción de la imagen
+docker build -t churn-api .
+Levantar el contenedor
+docker compose up
+Acceso
+http://localhost:8000/docs
+Resultado final
+Se implementó una API REST productiva capaz de:
+
+Cargar automáticamente el pipeline entrenado.
+Validar solicitudes de entrada.
+Generar predicciones reales de churn.
+Exponer documentación OpenAPI.
+Ejecutarse mediante Docker.
+Ejecutar pruebas automatizadas con Pytest.
+La solución cumple los requisitos funcionales del Segundo Parcial del Proyecto Integrador de Laboratorio de Minería de Datos.
