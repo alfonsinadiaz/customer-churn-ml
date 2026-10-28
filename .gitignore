@@ -8,6 +8,7 @@ __pycache__/
 data/processed/*
 models/*.joblib
 models/*.pkl
+models/version.txt
 results/generated/
 mlflow.db
 mlruns/

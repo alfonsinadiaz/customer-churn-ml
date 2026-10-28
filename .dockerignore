@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.env
+
+# Git y DVC
+.git/
+.gitignore
+.dvc/
+.dvcignore
+.dvc
+
+# Datos y resultados (generados localmente)
+data/
+notebooks/
+results/
+mlflow.db
+mlruns/
+
+# Caché de pruebas
+.pytest_cache/
+
+# Documentación (no necesaria en la imagen)
+*.md
