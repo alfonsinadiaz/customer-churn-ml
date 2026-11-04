@@ -4,4 +4,7 @@ services:
     ports:
       - "8000:8000"
     container_name: churn-api
-    
+    env_file:
+      - .env
+    volumes:
+      - ./models:/app/models

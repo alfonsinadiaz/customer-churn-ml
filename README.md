@@ -214,7 +214,7 @@ La segunda copia utilizó una credencial local de DagsHub que se retiró al fina
 <https://github.com/alfonsinadiaz/customer-churn-ml>
 
 
-***Segundo Parcial - API de Predicción de Churn***
+***SEGUNDO PARCIAL - API de Predicción de Churn***
 
 Objetivo
 En el segundo parcial se desarrolló una API REST utilizando FastAPI para exponer el modelo de Machine Learning entrenado en el primer parcial y permitir realizar predicciones de abandono de clientes (Customer Churn) mediante solicitudes HTTP.
@@ -343,3 +343,53 @@ Exponer documentación OpenAPI.
 Ejecutarse mediante Docker.
 Ejecutar pruebas automatizadas con Pytest.
 La solución cumple los requisitos funcionales del Segundo Parcial del Proyecto Integrador de Laboratorio de Minería de Datos.
+
+***ENTREGA 2 - API de Predicción de Churn***
+
+## Paso previo: generar el modelo para la API
+
+La API carga un pipeline entrenado desde `models/churn_pipeline.joblib`. Este archivo no está versionado en Git (se ignora por `.gitignore`). Antes de iniciar la API, genere el modelo:
+
+```bash
+# 1. Obtener el dataset (DVC)
+dvc pull
+
+# 2. Entrenar y guardar el modelo para la API
+python -m scripts.train_api_model
+```
+
+Esto entrena los seis candidatos, selecciona el mejor, guarda `models/churn_pipeline.joblib` y escribe `models/version.txt` con la versión del modelo.
+
+## Ejecutar la API
+
+### Localmente
+
+```bash
+python -m uvicorn app.api_main:app --reload
+```
+
+### Con Docker
+
+```bash
+docker compose up
+```
+
+Acceda a la documentación interactiva en `http://localhost:8000/docs`.
+
+## Endpoints
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/` | Mensaje de bienvenida |
+| GET | `/health` | Estado de la aplicación y versión del modelo |
+| GET | `/model` | Información del modelo cargado |
+| POST | `/predict` | Predicción de churn para un cliente |
+
+## Pruebas
+
+```bash
+pytest tests/test_api.py -v
+```
+
+Nota: si no existe `models/churn_pipeline.joblib`, `/predict` y `/health` reportan `model_status: "not_loaded"` y `/predict` devuelve `503`.
+
