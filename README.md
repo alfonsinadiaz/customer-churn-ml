@@ -1,395 +1,204 @@
-# Customer Churn - Primer Parcial
+# Customer Churn ML
 
-Proyecto de Laboratorio de Minería de Datos para analizar y predecir el abandono de clientes de una empresa de telecomunicaciones.
+Proyecto integrador de Laboratorio de Minería de Datos. El objetivo es estimar la probabilidad de baja de clientes de una empresa de telecomunicaciones y dejar el proceso completo reproducible: datos con DVC, experimentos con MLflow, modelo registrado, API, contenedor, CI/CD y monitoreo de drift.
 
-El notebook conserva el desarrollo exploratorio y el código reutilizable se encuentra refactorizado en `src/`. El entrenamiento también puede ejecutarse desde Python sin depender de la ejecución manual del notebook.
+## Problema y datos
 
-## Dataset
+El histórico tiene 7.043 clientes y 21 columnas. La variable objetivo es `Churn`; `customerID` se conserva para identificar registros, pero se excluye del entrenamiento. La proporción de churn observada es 26,37 % y hay 26 valores faltantes en `TotalCharges`.
 
-El notebook espera el archivo:
+Algunas conclusiones del análisis exploratorio:
 
-```text
-data/raw/customer_churn_historical.csv
+- Los contratos mes a mes tienen una tasa de churn mayor que los contratos largos.
+- Los clientes que se van tienen, en promedio, menos antigüedad.
+- Fibra óptica y cargos mensuales altos aparecen asociados a más bajas.
+
+Son asociaciones descriptivas y no implican causalidad.
+
+El archivo histórico no se guarda directamente en Git. Está referenciado por `data/raw/customer_churn_historical.csv.dvc` y, una vez que el objeto esté disponible en el remote, se recupera con:
+
+```bash
+dvc pull
 ```
 
-El dataset contiene:
+El remote configurado es `https://dagshub.com/giselle.san/entregaPrimerParcial.dvc`. En la revisión del 17 de noviembre de 2026 el puntero era correcto, pero el objeto no estaba en el remote y el intento de `dvc push` respondió `401`. Hace falta que una integrante con acceso al proyecto ejecute `dvc push`. Las credenciales de DagsHub se cargan localmente y nunca se suben al repositorio.
 
-- 7.043 clientes y 21 columnas.
-- 1.857 casos de churn, equivalentes al 26,37 %.
-- 26 valores faltantes en `TotalCharges`.
-- 0 filas duplicadas.
+## Entrenamiento y selección
 
-`customerID` se excluye del entrenamiento porque identifica al cliente y no representa una característica útil para generalizar predicciones.
+El preprocesamiento y el estimador forman un único `Pipeline` de scikit-learn. Las variables numéricas se imputan por mediana y se escalan; las categóricas se codifican con One Hot Encoding y toleran categorías nuevas.
 
-El CSV no se incluye directamente en Git. DVC lo referencia mediante `data/raw/customer_churn_historical.csv.dvc`.
+Se comparan seis configuraciones: un baseline, tres regresiones logísticas y dos Random Forest. La selección usa validación y pondera recall, F1 y ROC-AUC. El candidato elegido se vuelve a entrenar con train + validation y se evalúa una sola vez sobre el test aislado.
 
-## Análisis exploratorio
+La reproducción local del 17 de noviembre de 2026 seleccionó `logreg_c1_threshold035`. En el test aislado obtuvo:
 
-El EDA revisa dimensiones, tipos de datos, cardinalidad, valores faltantes, distribuciones y relaciones descriptivas con `Churn`.
+| Accuracy | Precision | Recall | F1 | ROC-AUC |
+|---:|---:|---:|---:|---:|
+| 0,656 | 0,424 | 0,847 | 0,565 | 0,812 |
 
-Principales observaciones:
+Se priorizó recall porque, para este caso, dejar pasar un cliente con riesgo de baja es más costoso que revisar un falso positivo. El umbral operativo es 0,35.
 
-- Los contratos mes a mes presentan una tasa de churn de 38,73 %.
-- Los contratos de dos años presentan una tasa de 8,97 %.
-- Los clientes con fibra óptica presentan una tasa de 40,25 %.
-- Los clientes que abandonan tienen menor antigüedad promedio: 29,28 meses frente a 37,28.
-- El cargo mensual promedio es mayor entre quienes abandonan: 79,98 frente a 63,94.
+```bash
+python scripts/train_api_model.py
+```
 
-Estas relaciones son descriptivas y no demuestran causalidad.
+El comando genera:
 
-## Preparación de datos
+- `models/churn_pipeline.joblib`: pipeline que consume la API local.
+- `models/version.txt`: versión legible del modelo.
+- `results/generated/experiment_results.csv`: comparación de corridas.
+- `results/generated/selected_model.json`: evidencia de selección y test.
 
-La partición utiliza `train_test_split` con estratificación y `random_state=42`:
+Estos archivos son regenerables y no se versionan en Git.
 
-- Entrenamiento: 5.634 registros, 80 %.
-- Test: 1.409 registros, 20 %.
+## MLflow y Model Registry
 
-El preprocesamiento se implementa con `Pipeline` y `ColumnTransformer`:
+Cada corrida guarda parámetros, métricas, artefactos, hash del dataset y commit de Git. Para trabajar localmente no hace falta configurar nada: MLflow usa `mlflow.db`.
 
-- Variables numéricas: imputación por mediana y estandarización.
-- Variables categóricas: One-Hot Encoding con categorías desconocidas ignoradas.
-- `SeniorCitizen`: conversión de 0/1 a No/Yes antes del modelado.
+```bash
+python -m mlflow ui --backend-store-uri sqlite:///mlflow.db
+```
 
-Los parámetros de imputación y escalado se ajustan sólo con los datos de entrenamiento.
+La ejecución remota verificada registró `customer-churn-candidate`, versión 4, en DagsHub. La corrida final de origen es [`cbc3cc5511bf4a5fae054191f097fe76`](https://dagshub.com/giselle.san/entregaPrimerParcial.mlflow/#/experiments/0/runs/cbc3cc5511bf4a5fae054191f097fe76). Para repetir el registro remoto se definen las variables de `.env.example` y se ejecuta:
 
-## Modelos comparados
+```bash
+python -m src.training.train --register-best --experiment customer-churn-final
+```
 
-| Modelo | Accuracy | Precision | Recall | F1 | ROC-AUC |
-|---|---:|---:|---:|---:|---:|
-| Dummy Classifier | 0,74 | 0,00 | 0,00 | 0,00 | 0,50 |
-| Regresión Logística balanceada | 0,72 | 0,48 | 0,72 | 0,58 | 0,81 |
-| Random Forest balanceado | 0,76 | 0,54 | 0,61 | 0,57 | 0,80 |
+## Instalación y pruebas
 
-La Regresión Logística se selecciona como candidata inicial porque obtiene el mayor recall, el mayor F1 y el mayor ROC-AUC de los modelos predictivos evaluados. Detecta 269 casos de churn y deja 103 falsos negativos.
-
-La selección corresponde a una primera iteración sobre una sola partición train/test. Todavía no se realizó validación cruzada ni ajuste del umbral.
-
-## Instalación
+Se recomienda Python 3.11.
 
 ```bash
 python -m venv .venv
 ```
 
-Windows PowerShell:
+En Windows PowerShell:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+pytest -q
 ```
 
-Linux o macOS:
+En Linux:
 
 ```bash
 source .venv/bin/activate
 pip install -r requirements.txt
+pytest -q
 ```
 
-## Ejecución
+Los tests cubren preparación de datos, métricas, entrenamiento y los contratos principales de la API. Un `503` en `/predict` ya no se acepta como resultado válido de una prueba de inferencia.
 
-Con el dataset disponible en `data/raw/`, el EDA resumido se ejecuta desde la raíz:
+## API
+
+Para desarrollo local primero se genera el modelo y luego se inicia FastAPI:
 
 ```bash
-python -m scripts.eda
+python scripts/train_api_model.py
+python -m uvicorn app.api_main:app --host 0.0.0.0 --port 8000
 ```
 
-Para ejecutar las seis alternativas, evaluar el candidato sobre el test aislado y registrarlo:
+Documentación interactiva: `http://localhost:8000/docs`.
 
-```bash
-python -m src.training.train --register-best
-```
-
-El pipeline seleccionado se guarda en `models/churn_pipeline.joblib`. Las métricas y la identificación del Run final se generan en `results/generated/`. Estos archivos pueden regenerarse y no se versionan en Git.
-
-## MLflow y Model Registry
-
-Por defecto, las corridas se guardan en `sqlite:///mlflow.db`. La interfaz local se abre con:
-
-```bash
-mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5000
-```
-
-El entrenamiento registra seis alternativas razonadas:
-
-| Run | Familia | Cambio evaluado |
+| Método | Ruta | Uso |
 |---|---|---|
-| `dummy_prior` | Baseline | Referencia sin capacidad predictiva |
-| `logreg_c0.5` | Lineal | Regularización `C=0.5` |
-| `logreg_c1` | Lineal | Regularización `C=1.0` |
-| `logreg_c1_threshold035` | Lineal | Umbral de decisión 0.35 |
-| `random_forest_depth5` | Árbol | Profundidad máxima 5 |
-| `random_forest_depth10` | Árbol | Profundidad máxima 10 |
+| GET | `/health` | Estado de la API y carga del modelo |
+| GET | `/model` | Versión y origen del modelo |
+| POST | `/predict` | Predicción individual de churn |
 
-Cada Run guarda parámetros, métricas, hash del dataset, commit Git, archivo JSON y pipeline completo. Una séptima corrida entrena el candidato seleccionado con train y validation, lo evalúa una sola vez sobre test y origina la versión del Model Registry.
+Ejemplo abreviado:
 
-La validación seleccionó `logreg_c1_threshold035`. En el test aislado obtuvo recall `0,847`, F1 `0,565` y ROC-AUC `0,812`.
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -H "X-Request-ID: demo-final-001" \
+  -d '{"gender":"Female","SeniorCitizen":"No","Partner":"Yes","Dependents":"No","tenure":12,"PhoneService":"Yes","MultipleLines":"No","InternetService":"Fiber optic","OnlineSecurity":"No","OnlineBackup":"Yes","DeviceProtection":"No","TechSupport":"No","StreamingTV":"Yes","StreamingMovies":"Yes","Contract":"Month-to-month","PaperlessBilling":"Yes","PaymentMethod":"Electronic check","MonthlyCharges":89.5,"TotalCharges":1074.0}'
+```
 
-Para registrar el mismo flujo en DagsHub se definen localmente las siguientes variables, sin guardar el token en Git:
+La respuesta incluye predicción, probabilidad, nivel de riesgo, versión de modelo y `request_id`.
+
+## Docker
+
+La imagen usa un usuario sin privilegios, expone un healthcheck y sólo instala dependencias de inferencia desde `requirements-api.txt`.
+
+Desarrollo local, con el modelo montado desde `./models`:
+
+```bash
+docker compose up --build -d
+docker compose ps
+docker compose logs -f churn-api
+```
+
+Producción usa `compose.prod.yaml`, una imagen versionada de GHCR y el modelo del Registry. Las instrucciones completas de instalación, actualización, diagnóstico y rollback están en [RUNBOOK.md](RUNBOOK.md).
+
+## CI/CD y versionado
+
+`.github/workflows/ci-cd.yml` se ejecuta en cada pull request, push a `main` y tag `v*`:
+
+1. Descarga el código e instala Python 3.11.
+2. Instala dependencias y ejecuta `pytest` como condición obligatoria.
+3. Construye la imagen Docker.
+4. En `main` y tags, publica en `ghcr.io/alfonsinadiaz/customer-churn-ml`.
+
+Cada imagen recibe un tag por commit (`sha-...`). Un tag Git como `v1.0.0` también publica `v1.0.0`, `1.0.0` y `latest`. El despliegue documentado fija `v1.0.0`; no depende de `latest`.
+
+La release final se crea solamente después de que el workflow esté verde y se haya verificado el despliegue en el segundo host Linux:
+
+```bash
+git tag -a v1.0.0 -m "Entrega final"
+git push origin v1.0.0
+```
+
+## Logging y observabilidad
+
+La API escribe logs JSON en stdout. Registra inicio, errores y cada request con:
+
+- `request_id`, método, ruta y código HTTP;
+- tiempo de proceso en milisegundos;
+- versión del modelo usado.
+
+`/health` devuelve `503` si el modelo local o el Registry no están disponibles. En Docker se revisa con `docker compose ps`, `curl /health` y `docker compose logs`. El runbook explica cómo detectar caída, errores y aumento de latencia.
+
+## Data drift
+
+El monitoreo compara el histórico con `customer_churn_current.csv` mediante Evidently. Excluye `customerID` y `Churn`, usa PSI con umbral 0,20 y considera drift global si cambia al menos la mitad de las variables.
+
+```bash
+python monitoring/generate_drift_report.py \
+  --reference data/raw/customer_churn_historical.csv \
+  --current data/production/customer_churn_current.csv
+```
+
+La salida visual y el resumen quedan en `monitoring/reports/`. El drift inicia una revisión de datos y contexto; no dispara reentrenamiento automático.
+
+## Estructura
 
 ```text
-MLFLOW_TRACKING_URI=https://dagshub.com/giselle.san/entregaPrimerParcial.mlflow
-MLFLOW_TRACKING_USERNAME=giselle.san
-MLFLOW_TRACKING_PASSWORD=TOKEN_PERSONAL
+app/                  API, esquemas, carga del modelo y logging
+data/                 punteros DVC y lotes locales ignorados por Git
+monitoring/           generación y evidencia de data drift
+scripts/              EDA y entrenamiento para la API
+src/                  carga, features, evaluación y entrenamiento
+tests/                pruebas automáticas
+.github/workflows/    CI/CD y publicación en GHCR
+compose.prod.yaml     despliegue desde una imagen versionada
+RUNBOOK.md            operación del servicio en Linux
 ```
 
-La ejecución remota verificada el 21 de septiembre de 2026 registró `customer-churn-candidate` versión 4. La corrida final de origen es [`cbc3cc5511bf4a5fae054191f097fe76`](https://dagshub.com/giselle.san/entregaPrimerParcial.mlflow/#/experiments/0/runs/cbc3cc5511bf4a5fae054191f097fe76) y conserva como origen el commit `f629724`. Las seis corridas pueden compararse en el [experimento de DagsHub MLflow](https://dagshub.com/giselle.san/entregaPrimerParcial.mlflow/#/experiments/0).
+## Limitaciones
 
-Las pruebas se ejecutan con:
+- La selección usa una partición fija; no se implementó validación cruzada.
+- La probabilidad no está calibrada para interpretarse como riesgo financiero.
+- El lote actual no incluye `Churn`, por lo que permite medir drift de entrada pero no desempeño real reciente.
+- Las categorías y patrones corresponden a este dataset de telecomunicaciones; no se debe extrapolar el modelo a otra población sin validación.
+- Retrain y promoción de una nueva versión requieren revisión humana.
+- Los artefactos de scikit-learn usan serialización basada en pickle; sólo se cargan modelos generados por este proyecto o recuperados del Registry autorizado.
 
-```bash
-pytest
-```
+## Material de entrega
 
-El notebook sigue disponible en `notebooks/01_eda_y_modelos.ipynb`. Debe iniciarse desde la carpeta `notebooks/` para que su ruta `../data/raw/customer_churn_historical.csv` encuentre el archivo.
-
-## DVC
-
-La versión local de DVC ya está inicializada y el CSV está rastreado. Para comprobar el estado:
-
-```bash
-dvc status
-```
-
-El remote utiliza el proyecto de DagsHub que ya existía y su URL ya está guardada en `.dvc/config`:
-
-<https://dagshub.com/giselle.san/entregaPrimerParcial>
-
-Cada integrante debe guardar su propio usuario y token mediante configuración local. `.dvc/config.local` está ignorado por Git y los tokens no deben incluirse en el repositorio. Después puede recuperar o subir los datos con:
-
-```bash
-dvc pull
-dvc push
-```
-
-En esta copia el remote ya está configurado y `dvc push` fue comprobado el 21 de septiembre de 2026. Cada integrante utiliza sus propias credenciales para ejecutar `dvc pull` o `dvc push`.
-
-## Estructura actual
-
-```text
-customer-churn-ml/
-├── data/raw/
-│   └── customer_churn_historical.csv.dvc
-├── notebooks/
-│   └── 01_eda_y_modelos.ipynb
-├── scripts/
-│   └── eda.py
-├── src/
-│   ├── data/load_data.py
-│   ├── evaluation/metrics.py
-│   ├── features/preprocessing.py
-│   └── training/train.py
-├── tests/
-│   ├── test_metrics.py
-│   ├── test_preprocessing.py
-│   └── test_training.py
-├── .dvc/
-├── .env.example
-├── .gitignore
-├── README.md
-└── requirements.txt
-```
-
-## Estado frente a los requisitos del parcial
-
-| Requisito | Estado actual |
-|---|---|
-| Repositorio GitHub con README y dependencias | Cumplido |
-| EDA de dimensiones, tipos, faltantes, target y calidad | Cumplido |
-| Partición reproducible y test separado | Cumplido |
-| Pipeline de preprocesamiento con scikit-learn | Cumplido |
-| Baseline, modelo lineal y modelo de árboles | Cumplido |
-| Entrenamiento ejecutable desde Python fuera del notebook | Cumplido |
-| Pruebas de métricas, preprocesamiento y alternativas | Cumplido: 3 pruebas |
-| Dataset rastreado localmente con DVC | Cumplido |
-| Remote DVC apuntando al DagsHub existente | Configurado |
-| Autenticación vigente y comprobación de `dvc push` | Cumplido |
-| Seis corridas relevantes en MLflow | Cumplido en DagsHub |
-| Modelo candidato en Model Registry | Cumplido: versión 4, Run `cbc3cc5511bf4a5fae054191f097fe76` |
-| Tag Git `entrega-1` sobre el commit presentado | Cumplido en la versión final |
-| Reproducción completa desde una segunda copia | Comprobada: clone, DVC pull, EDA, pruebas y entrenamiento |
-
-La segunda copia utilizó una credencial local de DagsHub que se retiró al finalizar la prueba. Cada integrante debe utilizar su propio token; ninguna credencial forma parte de Git.
-
-## Repositorio
-
-<https://github.com/alfonsinadiaz/customer-churn-ml>
-
-
-***SEGUNDO PARCIAL - API de Predicción de Churn***
-
-Objetivo
-En el segundo parcial se desarrolló una API REST utilizando FastAPI para exponer el modelo de Machine Learning entrenado en el primer parcial y permitir realizar predicciones de abandono de clientes (Customer Churn) mediante solicitudes HTTP.
-
-Arquitectura de la solución
-La API utiliza:
-
-FastAPI para la construcción de servicios REST.
-Pydantic para validación de datos de entrada.
-Joblib para cargar el pipeline entrenado.
-Scikit-Learn para inferencia del modelo.
-Pytest para pruebas automatizadas.
-Docker y Docker Compose para contenerización y despliegue.
-Estructura agregada en el segundo parcial
-app/
-├── api_main.py
-├── predictor.py
-└── schemas.py
-
-models/
-└── churn_pipeline.joblib
-
-tests/
-└── test_api.py
-
-Dockerfile
-compose.yaml
-API REST
-Endpoint raíz
-GET /
-Respuesta:
-
-{
-  "message": "Customer Churn API"
-}
-Estado de la aplicación
-GET /health
-Respuesta:
-
-{
-  "status": "healthy",
-  "model_version": "4"
-}
-Predicción de Churn
-POST /predict
-Entrada:
-
-{
-  "gender": "Female",
-  "SeniorCitizen": "No",
-  "Partner": "Yes",
-  "Dependents": "No",
-  "tenure": 12,
-  "PhoneService": "Yes",
-  "MultipleLines": "No",
-  "InternetService": "Fiber optic",
-  "OnlineSecurity": "No",
-  "OnlineBackup": "Yes",
-  "DeviceProtection": "No",
-  "TechSupport": "No",
-  "StreamingTV": "Yes",
-  "StreamingMovies": "Yes",
-  "Contract": "Month-to-month",
-  "PaperlessBilling": "Yes",
-  "PaymentMethod": "Electronic check",
-  "MonthlyCharges": 89.5,
-  "TotalCharges": 1074.0
-}
-Ejemplo de respuesta:
-
-{
-  "prediction": "CHURN",
-  "probability": 0.9397,
-  "risk_level": "HIGH",
-  "model_version": "4"
-}
-Campos de salida:
-
-Campo	Descripción
-prediction	Resultado final de la predicción
-probability	Probabilidad estimada de churn
-risk_level	LOW, MEDIUM o HIGH
-model_version	Versión del modelo utilizado
-Documentación interactiva
-FastAPI genera documentación OpenAPI automáticamente.
-
-Swagger:
-
-http://localhost:8000/docs
-Redoc:
-
-http://localhost:8000/redoc
-Ejecución local
-Iniciar la API:
-
-python -m uvicorn app.api_main:app --reload
-Abrir documentación:
-
-http://localhost:8000/docs
-Testing
-Pruebas implementadas:
-
-Verificación de disponibilidad del endpoint /health.
-Verificación del endpoint /predict.
-Validación de estructura de respuesta.
-Ejecución:
-
-python -m pytest tests/test_api.py -v
-Resultado obtenido:
-
-2 passed
-Docker
-Construcción de la imagen
-docker build -t churn-api .
-Levantar el contenedor
-docker compose up
-Acceso
-http://localhost:8000/docs
-Resultado final
-Se implementó una API REST productiva capaz de:
-
-Cargar automáticamente el pipeline entrenado.
-Validar solicitudes de entrada.
-Generar predicciones reales de churn.
-Exponer documentación OpenAPI.
-Ejecutarse mediante Docker.
-Ejecutar pruebas automatizadas con Pytest.
-La solución cumple los requisitos funcionales del Segundo Parcial del Proyecto Integrador de Laboratorio de Minería de Datos.
-
-***ENTREGA 2 - API de Predicción de Churn***
-
-## Paso previo: generar el modelo para la API
-
-La API carga un pipeline entrenado desde `models/churn_pipeline.joblib`. Este archivo no está versionado en Git (se ignora por `.gitignore`). Antes de iniciar la API, genere el modelo:
-
-```bash
-# 1. Obtener el dataset (DVC)
-dvc pull
-
-# 2. Entrenar y guardar el modelo para la API
-python -m scripts.train_api_model
-```
-
-Esto entrena los seis candidatos, selecciona el mejor, guarda `models/churn_pipeline.joblib` y escribe `models/version.txt` con la versión del modelo.
-
-## Ejecutar la API
-
-### Localmente
-
-```bash
-python -m uvicorn app.api_main:app --reload
-```
-
-### Con Docker
-
-```bash
-docker compose up
-```
-
-Acceda a la documentación interactiva en `http://localhost:8000/docs`.
-
-## Endpoints
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/` | Mensaje de bienvenida |
-| GET | `/health` | Estado de la aplicación y versión del modelo |
-| GET | `/model` | Información del modelo cargado |
-| POST | `/predict` | Predicción de churn para un cliente |
-
-## Pruebas
-
-```bash
-pytest tests/test_api.py -v
-```
-
-Nota: si no existe `models/churn_pipeline.joblib`, `/predict` y `/health` reportan `model_status: "not_loaded"` y `/predict` devuelve `503`.
-
+- Código y documentación: este repositorio.
+- Tracking y Registry: DagsHub/MLflow enlazado arriba.
+- Imagen: `ghcr.io/alfonsinadiaz/customer-churn-ml:<versión>` después del workflow de release.
+- Operación: [RUNBOOK.md](RUNBOOK.md).
+- Evidencia de drift: `monitoring/reports/`.
+- Guion y control final: `docs/GUIA_VIDEO.md` y `docs/CHECKLIST_ENTREGA_FINAL.md`.

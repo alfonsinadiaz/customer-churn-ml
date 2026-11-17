@@ -1,0 +1,21 @@
+services:
+  churn-api:
+    image: ${IMAGE_NAME:-ghcr.io/alfonsinadiaz/customer-churn-ml}:${IMAGE_TAG:-v1.0.0}
+    container_name: churn-api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      APP_VERSION: ${IMAGE_TAG:-v1.0.0}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      MODEL_URI: ${MODEL_URI}
+      MODEL_VERSION: ${MODEL_VERSION}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
+      MLFLOW_TRACKING_USERNAME: ${MLFLOW_TRACKING_USERNAME}
+      MLFLOW_TRACKING_PASSWORD: ${MLFLOW_TRACKING_PASSWORD}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
