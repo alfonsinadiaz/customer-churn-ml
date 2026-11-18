@@ -76,7 +76,7 @@ En Windows PowerShell:
 ```powershell
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-pytest -q
+python -m pytest -q
 ```
 
 En Linux:
@@ -84,7 +84,7 @@ En Linux:
 ```bash
 source .venv/bin/activate
 pip install -r requirements.txt
-pytest -q
+python -m pytest -q
 ```
 
 Los tests cubren preparación de datos, métricas, entrenamiento y los contratos principales de la API. Un `503` en `/predict` ya no se acepta como resultado válido de una prueba de inferencia.
