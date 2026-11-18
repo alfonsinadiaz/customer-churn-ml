@@ -18,9 +18,9 @@ IMAGE_NAME=ghcr.io/alfonsinadiaz/customer-churn-ml
 IMAGE_TAG=v1.0.0
 API_PORT=8000
 LOG_LEVEL=INFO
-MODEL_URI=models:/customer-churn-candidate/4
-MODEL_VERSION=registry-v4
-MLFLOW_TRACKING_URI=https://dagshub.com/giselle.san/entregaPrimerParcial.mlflow
+MODEL_URI=models:/customer-churn-candidate/1
+MODEL_VERSION=registry-v1
+MLFLOW_TRACKING_URI=https://dagshub.com/alfonsinadiaz/customer-churn-ml.mlflow
 MLFLOW_TRACKING_USERNAME=<usuario-dagshub>
 MLFLOW_TRACKING_PASSWORD=<token-dagshub>
 ```

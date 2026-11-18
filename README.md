@@ -20,7 +20,7 @@ El archivo histórico no se guarda directamente en Git. Está referenciado por `
 dvc pull
 ```
 
-El remote configurado es `https://dagshub.com/giselle.san/entregaPrimerParcial.dvc`. En la revisión del 17 de noviembre de 2026 el puntero era correcto, pero el objeto no estaba en el remote y el intento de `dvc push` respondió `401`. Hace falta que una integrante con acceso al proyecto ejecute `dvc push`. Las credenciales de DagsHub se cargan localmente y nunca se suben al repositorio.
+El remote configurado es `https://dagshub.com/alfonsinadiaz/customer-churn-ml.dvc`, el mismo proyecto final que refleja este repositorio de GitHub. Para publicar o recuperar los datos se usan `dvc push` y `dvc pull`. Las credenciales de DagsHub se cargan localmente y nunca se suben al repositorio.
 
 ## Entrenamiento y selección
 
@@ -57,11 +57,13 @@ Cada corrida guarda parámetros, métricas, artefactos, hash del dataset y commi
 python -m mlflow ui --backend-store-uri sqlite:///mlflow.db
 ```
 
-La ejecución remota verificada registró `customer-churn-candidate`, versión 4, en DagsHub. La corrida final de origen es [`cbc3cc5511bf4a5fae054191f097fe76`](https://dagshub.com/giselle.san/entregaPrimerParcial.mlflow/#/experiments/0/runs/cbc3cc5511bf4a5fae054191f097fe76). Para repetir el registro remoto se definen las variables de `.env.example` y se ejecuta:
+El tracking remoto y el Model Registry pertenecen al proyecto final [`alfonsinadiaz/customer-churn-ml`](https://dagshub.com/alfonsinadiaz/customer-churn-ml). Para registrar el modelo se completan localmente las credenciales indicadas en `.env.example` y se ejecuta:
 
 ```bash
 python -m src.training.train --register-best --experiment customer-churn-final
 ```
+
+La primera ejecución en este Registry crea `customer-churn-candidate`, versión 1. Si DagsHub asigna otra versión, se actualizan `MODEL_URI` y `MODEL_VERSION` con el valor informado por la corrida.
 
 ## Instalación y pruebas
 
