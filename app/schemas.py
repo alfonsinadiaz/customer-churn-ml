@@ -21,3 +21,18 @@ class CustomerInput(BaseModel):
     PaymentMethod: str
     MonthlyCharges: float = Field(ge=0)
     TotalCharges: float = Field(ge=0)
+
+
+class PredictionResponse(BaseModel):
+    prediction: str
+    probability: float
+    risk_level: str
+    model_version: str
+    request_id: str
+
+
+class HealthResponse(BaseModel):
+    status: str
+    model_status: str
+    model_version: str
+    app_version: str

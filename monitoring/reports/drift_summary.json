@@ -1,0 +1,125 @@
+{
+  "drift_detected": false,
+  "drifted_columns_count": 2,
+  "drifted_columns_share": 0.10526315789473684,
+  "columns": [
+    {
+      "column": "MonthlyCharges",
+      "psi": 0.4149248913930875,
+      "threshold": 0.2,
+      "drifted": true
+    },
+    {
+      "column": "tenure",
+      "psi": 0.2952137074573456,
+      "threshold": 0.2,
+      "drifted": true
+    },
+    {
+      "column": "StreamingTV",
+      "psi": 0.1151132582146745,
+      "threshold": 0.2,
+      "drifted": false
+    },
+    {
+      "column": "OnlineSecurity",
+      "psi": 0.11345031055735166,
+      "threshold": 0.2,
+      "drifted": false
+    },
+    {
+      "column": "InternetService",
+      "psi": 0.1080337889373384,
+      "threshold": 0.2,
+      "drifted": false
+    },
+    {
+      "column": "StreamingMovies",
+      "psi": 0.10791221904685189,
+      "threshold": 0.2,
+      "drifted": false
+    },
+    {
+      "column": "TechSupport",
+      "psi": 0.10210508914815425,
+      "threshold": 0.2,
+      "drifted": false
+    },
+    {
+      "column": "Contract",
+      "psi": 0.09117184773630507,
+      "threshold": 0.2,
+      "drifted": false
+    },
+    {
+      "column": "DeviceProtection",
+      "psi": 0.08456678505428618,
+      "threshold": 0.2,
+      "drifted": false
+    },
+    {
+      "column": "OnlineBackup",
+      "psi": 0.0826493640787336,
+      "threshold": 0.2,
+      "drifted": false
+    },
+    {
+      "column": "PaymentMethod",
+      "psi": 0.04440540826322302,
+      "threshold": 0.2,
+      "drifted": false
+    },
+    {
+      "column": "TotalCharges",
+      "psi": 0.04133900161874265,
+      "threshold": 0.2,
+      "drifted": false
+    },
+    {
+      "column": "PaperlessBilling",
+      "psi": 0.024243050457793625,
+      "threshold": 0.2,
+      "drifted": false
+    },
+    {
+      "column": "Dependents",
+      "psi": 0.013844973931333077,
+      "threshold": 0.2,
+      "drifted": false
+    },
+    {
+      "column": "Partner",
+      "psi": 0.012462352610800202,
+      "threshold": 0.2,
+      "drifted": false
+    },
+    {
+      "column": "MultipleLines",
+      "psi": 0.0056906409968319445,
+      "threshold": 0.2,
+      "drifted": false
+    },
+    {
+      "column": "PhoneService",
+      "psi": 0.000350503306541892,
+      "threshold": 0.2,
+      "drifted": false
+    },
+    {
+      "column": "SeniorCitizen",
+      "psi": 0.00015493085382524606,
+      "threshold": 0.2,
+      "drifted": false
+    },
+    {
+      "column": "gender",
+      "psi": 9.738613162614242e-05,
+      "threshold": 0.2,
+      "drifted": false
+    }
+  ],
+  "reference_rows": 7043,
+  "current_rows": 2500,
+  "reference_path": "customer_churn_historical.csv",
+  "current_path": "customer_churn_current.csv"
+}

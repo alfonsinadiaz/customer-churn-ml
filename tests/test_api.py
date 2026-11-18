@@ -1,8 +1,21 @@
+import numpy as np
 from fastapi.testclient import TestClient
+import pytest
 
-from app.api_main import app
+import app.api_main as api_main
 
-client = TestClient(app)
+client = TestClient(api_main.app)
+
+
+class FakeModel:
+    def predict_proba(self, data):
+        return np.array([[0.2, 0.8] for _ in range(len(data))])
+
+
+@pytest.fixture(autouse=True)
+def loaded_model(monkeypatch):
+    monkeypatch.setattr(api_main, "get_model", lambda: FakeModel())
+    monkeypatch.setattr(api_main, "get_model_version", lambda: "test-v1")
 
 VALID_PAYLOAD = {
     "gender": "Female",
@@ -38,6 +51,7 @@ def test_health():
     assert "status" in data
     assert "model_version" in data
     assert "model_status" in data
+    assert data["status"] == "healthy"
 
 
 def test_model_endpoint():
@@ -55,19 +69,14 @@ def test_predict():
 
     response = client.post("/predict", json=VALID_PAYLOAD)
 
-    assert response.status_code in (200, 503)
+    assert response.status_code == 200
+    data = response.json()
 
-    if response.status_code == 200:
-        data = response.json()
-
-        assert "prediction" in data
-        assert "probability" in data
-        assert "risk_level" in data
-        assert "model_version" in data
-
-        assert data["prediction"] in ("CHURN", "NO_CHURN")
-        assert isinstance(data["probability"], float)
-        assert data["risk_level"] in ("LOW", "MEDIUM", "HIGH")
+    assert data["prediction"] == "CHURN"
+    assert data["probability"] == 0.8
+    assert data["risk_level"] == "HIGH"
+    assert data["model_version"] == "test-v1"
+    assert data["request_id"] == response.headers["X-Request-ID"]
 
 
 def test_predict_invalid_input_returns_422():
@@ -78,3 +87,22 @@ def test_predict_invalid_input_returns_422():
     response = client.post("/predict", json=payload)
 
     assert response.status_code == 422
+
+
+def test_health_returns_503_without_model(monkeypatch):
+    def missing_model():
+        raise FileNotFoundError("missing")
+
+    monkeypatch.setattr(api_main, "get_model", missing_model)
+    response = client.get("/health")
+    assert response.status_code == 503
+    assert response.json()["status"] == "degraded"
+
+
+def test_request_id_is_propagated():
+    response = client.post(
+        "/predict", json=VALID_PAYLOAD, headers={"X-Request-ID": "demo-123"}
+    )
+    assert response.status_code == 200
+    assert response.headers["X-Request-ID"] == "demo-123"
+    assert response.json()["request_id"] == "demo-123"
