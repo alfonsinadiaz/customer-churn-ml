@@ -62,7 +62,8 @@ def test_model_endpoint():
 
     data = response.json()
 
-    assert "model_version" in data
+    assert data["model_version"] == "test-v1"
+    assert data["model_source"]
 
 
 def test_predict():
@@ -89,6 +90,24 @@ def test_predict_invalid_input_returns_422():
     assert response.status_code == 422
 
 
+def test_predict_rejects_unknown_category():
+    payload = dict(VALID_PAYLOAD)
+    payload["Contract"] = "Weekly"
+
+    response = client.post("/predict", json=payload)
+
+    assert response.status_code == 422
+
+
+def test_predict_accepts_null_total_charges():
+    payload = dict(VALID_PAYLOAD)
+    payload["TotalCharges"] = None
+
+    response = client.post("/predict", json=payload)
+
+    assert response.status_code == 200
+
+
 def test_health_returns_503_without_model(monkeypatch):
     def missing_model():
         raise FileNotFoundError("missing")
@@ -97,6 +116,16 @@ def test_health_returns_503_without_model(monkeypatch):
     response = client.get("/health")
     assert response.status_code == 503
     assert response.json()["status"] == "degraded"
+
+
+def test_predict_returns_503_without_model(monkeypatch):
+    def missing_model():
+        raise FileNotFoundError("missing")
+
+    monkeypatch.setattr(api_main, "get_model", missing_model)
+    response = client.post("/predict", json=VALID_PAYLOAD)
+
+    assert response.status_code == 503
 
 
 def test_request_id_is_propagated():

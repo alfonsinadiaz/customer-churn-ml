@@ -10,7 +10,7 @@ import pandas as pd
 
 from app.logging_config import configure_logging
 from app.predictor import get_model, get_model_source, get_model_version
-from app.schemas import CustomerInput, HealthResponse, PredictionResponse
+from app.schemas import CustomerInput, HealthResponse, ModelResponse, PredictionResponse
 
 configure_logging()
 logger = logging.getLogger("churn_api")
@@ -98,7 +98,7 @@ def health():
     )
 
 
-@app.get("/model")
+@app.get("/model", response_model=ModelResponse)
 def model_info():
     return {
         "model_version": get_model_version(),

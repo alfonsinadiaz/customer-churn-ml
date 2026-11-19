@@ -119,6 +119,8 @@ curl -X POST http://localhost:8000/predict \
 
 La respuesta incluye predicción, probabilidad, nivel de riesgo, versión de modelo y `request_id`.
 
+El contrato de entrada restringe las variables categóricas a los valores observados durante el entrenamiento. `TotalCharges` puede enviarse como `null`; el pipeline aplica la misma imputación por mediana utilizada en entrenamiento.
+
 ## Docker
 
 La imagen usa un usuario sin privilegios, expone un healthcheck y sólo instala dependencias de inferencia desde `requirements-api.txt`.
